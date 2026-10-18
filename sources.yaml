@@ -1,0 +1,47 @@
+# Every dataset you want to use goes here.
+# The merge script ignores each dataset's own train/valid/test split and re-splits
+# everything by VIDEO / ORIGINAL IMAGE, so near-identical frames never leak into the test set.
+
+# The classes your final model will learn (order = class id).
+classes: [shahed, bird, other_aircraft]
+
+split:
+  val: 0.15        # fraction of groups that go to validation
+  test: 0.15       # fraction of REAL groups that go to test (synthetic is never in test)
+  seed: 42
+
+sources:
+  # Example 1: synthetic renders (download as "YOLOv8" format from Roboflow, unzip here)
+  - name: render
+    path: data/raw/shahed136-detect
+    domain: synthetic          # synthetic -> train/val only, never test
+    group_by: image            # image = each render is independent
+    class_map:                 # source class name -> your class name. Unlisted classes are dropped.
+      shahed: shahed
+
+  # Example 2: real footage frames
+  - name: real
+    path: data/raw/target-detection-shahed
+    domain: real
+    group_by: video            # video = all frames of one video stay together (look at the file names!)
+    class_map:
+      shahed: shahed
+      Shahed: shahed
+      bird: bird
+
+  # Example 3: multi-class dataset with confusers
+  - name: hlyx
+    path: data/raw/shahed-136-hlyx
+    domain: real
+    group_by: video
+    class_map:
+      shahed: shahed
+      bird: bird
+      helicopter: other_aircraft
+
+  # Example 4: hard negatives = images with NO target (paper planes, kites, sky, planes...)
+  # Just put images in this folder. No label files needed. They teach the model "this is NOT a Shahed".
+  - name: negatives
+    path: data/raw/negatives
+    domain: real
+    class_map: {}

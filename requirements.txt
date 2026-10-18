@@ -1,0 +1,7 @@
+ultralytics>=8.3
+opencv-python
+pyyaml
+pillow
+ncnn        # export / run the NCNN model (laptop AND Pi)
+lap         # needed by the tracker in step 6 (laptop AND Pi)
+# On the Raspberry Pi, picamera2 comes from apt:  sudo apt install -y python3-picamera2

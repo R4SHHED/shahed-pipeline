@@ -9,6 +9,7 @@ stays in ONE split, and the test set contains REAL images only.
 """
 import argparse
 import random
+import re
 import shutil
 from collections import defaultdict
 from pathlib import Path
@@ -58,12 +59,18 @@ def main():
             print(f"[info] {src['name']}: dropping classes not in class_map: {dropped}")
 
         imgs = sorted(p for p in sdir.rglob("*") if p.suffix.lower() in IMG_EXTS)
+        # optional filters on the file name, so ONE folder can be split into two sources
+        # (e.g. real frames named 0001_... vs renders with random names)
+        if src.get("include"):
+            imgs = [p for p in imgs if re.search(src["include"], p.name)]
+        if src.get("exclude"):
+            imgs = [p for p in imgs if not re.search(src["exclude"], p.name)]
         mode = src.get("group_by", "image")
         groups = defaultdict(list)
         for p in imgs:
             groups[group_key(p.stem, mode)].append(p)
         keys = sorted(groups)
-        if len(imgs) >= 20 and len(keys) <= 3:
+        if len(imgs) >= 20 and len(keys) <= 3 and src.get("test", test_f) < 1.0:
             print(f"[warn] {src['name']}: {len(imgs)} images collapsed into only {len(keys)} group(s). "
                   f"Check file names, or use group_by: image for this source.")
         if mode == "video" and len(keys) == len(imgs) and len(imgs) > 20:
@@ -73,8 +80,10 @@ def main():
 
         real = src.get("domain", "real") == "real"
         n = len(keys)
-        n_test = int(round(n * test_f)) if real else 0
-        n_val = max(1 if n > 1 else 0, int(round(n * val_f)))
+        s_test = src.get("test", test_f)   # per-source override, e.g. test: 1.0 = all to test
+        s_val = src.get("val", val_f)
+        n_test = int(round(n * s_test)) if real else 0
+        n_val = min(n - n_test, max(1 if n > 1 else 0, int(round(n * s_val))))
         assign = {}
         for i, k in enumerate(keys):
             assign[k] = "test" if i < n_test else "val" if i < n_test + n_val else "train"

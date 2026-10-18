@@ -74,8 +74,17 @@ def group_key(stem, mode="image"):
     mode='image': only Roboflow augmented copies of the same original are grouped
                   ('photo12_jpg.rf.abc' and 'photo12_jpg.rf.def' -> 'photo12').
     mode='video': also strips the trailing frame number, so every frame of a video is one group
-                  ('video3_frame_0042_jpg.rf.abc' -> 'video3')."""
+                  ('video3_frame_0042_jpg.rf.abc' -> 'video3').
+    mode='block:N': files numbered in order (0001, 0002, ...) are grouped in blocks of N
+                  consecutive numbers (0001-0049 -> one group), so neighbouring video frames
+                  never end up in different splits."""
     s = _RF.sub("", stem)
+    if mode.startswith("block"):
+        n = int(mode.split(":")[1]) if ":" in mode else 50
+        m = re.search(r"(\d+)$", s)
+        if m:
+            return f"{s[:m.start()].lower()}#{int(m.group(1)) // n}"
+        return s.lower()
     if mode == "video":
         s = _FRAME.sub("", s) or s
     return s.lower()

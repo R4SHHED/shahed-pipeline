@@ -17,17 +17,28 @@ sources:
     domain: synthetic          # synthetic -> train/val only, never test
     group_by: image            # image = each render is independent
     class_map:                 # source class name -> your class name. Unlisted classes are dropped.
-      shahed: shahed
+      "1": shahed
 
-  # Example 2: real footage frames
-  - name: real
+  # Example 2: "Target Detection - Shahed" by Mariam Aljaberi (CC BY 4.0 - credit the author!)
+  # This ONE folder holds two kinds of images, split by file name:
+  #   random-letter names (~2,833) = renders  -> train/val only
+  #   numbered names 0001_... (49) = REAL     -> all go to test (honest real-world benchmark)
+  - name: aljaberi_render
     path: data/raw/target-detection-shahed
-    domain: real
-    group_by: video            # video = all frames of one video stay together (look at the file names!)
+    domain: synthetic
+    exclude: '^\d+_'          # everything that does NOT start with a number
+    group_by: image
     class_map:
       shahed: shahed
-      Shahed: shahed
-      bird: bird
+
+  - name: aljaberi_real
+    path: data/raw/target-detection-shahed
+    domain: real
+    include: '^\d+_'          # only files that start with a number (0001_, 0002_ ...)
+    group_by: block:50
+    test: 1.0                  # all 49 real images -> test. Lower this once you have more real data.
+    class_map:
+      shahed: shahed
 
   # Example 3: multi-class dataset with confusers
   - name: hlyx

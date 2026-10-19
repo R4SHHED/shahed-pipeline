@@ -7,3 +7,4 @@ runs/
 *.onnx
 *.ncnn
 bus.jpg
+*.mp4

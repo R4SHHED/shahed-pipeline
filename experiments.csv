@@ -1,0 +1,2 @@
+date,name,model,imgsz,epochs,test_mAP50_all,test_mAP50-95_all,shahed_P,shahed_R,shahed_AP50,shahed_AP50-95,train_minutes,weights,pi_fps,notes
+2026-10-19 09:32,baseline,yolo11n,640,12,0.995,0.3207,1.0,0.9991,0.995,0.3207,427.2,runs\baseline\weights\best.pt,,

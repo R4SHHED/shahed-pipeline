@@ -34,9 +34,17 @@ def main():
     ap.add_argument("--patience", type=int, default=25, help="stop early if no improvement")
     ap.add_argument("--device", default=None, help="0 for GPU, cpu for CPU (auto if empty)")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--resume", action="store_true",
+                    help="continue an interrupted run with the same --name (e.g. after a Windows restart)")
     args = ap.parse_args()
 
-    if args.p2:
+    last = ROOT / "runs" / args.name / "weights" / "last.pt"
+    if args.resume:
+        if not last.exists():
+            raise SystemExit(f"Nothing to resume: {last} not found")
+        model = YOLO(str(last))
+        model_desc = "resumed"
+    elif args.p2:
         # P2 config + load the matching pretrained weights wherever layers fit
         model = YOLO("yolov8n-p2.yaml").load("yolov8n.pt")
         model_desc = "yolov8n-p2"
@@ -45,17 +53,27 @@ def main():
         model_desc = Path(args.model).stem
 
     t0 = time.time()
-    model.train(
-        data=args.data, imgsz=args.imgsz, epochs=args.epochs, batch=args.batch,
-        patience=args.patience, device=args.device, seed=args.seed, deterministic=True,
-        project=str(ROOT / "runs"), name=args.name, exist_ok=True,
-        # small-object friendly augmentation: keep mosaic, add mild scale + blur-ish variety
-        mosaic=1.0, scale=0.5, degrees=5, fliplr=0.5, hsv_v=0.4,
-        close_mosaic=10,
-    )
+    if args.resume:
+        model.train(resume=True)
+    else:
+        model.train(
+            data=args.data, imgsz=args.imgsz, epochs=args.epochs, batch=args.batch,
+            patience=args.patience, device=args.device, seed=args.seed, deterministic=True,
+            project=str(ROOT / "runs"), name=args.name, exist_ok=True,
+            # small-object friendly augmentation: keep mosaic, add mild scale + brightness variety
+            mosaic=1.0, scale=0.5, degrees=5, fliplr=0.5, hsv_v=0.4,
+            # turn mosaic off for the last epochs; scaled down for short (e.g. overnight CPU) runs
+            close_mosaic=max(1, min(10, args.epochs // 5)),
+        )
     train_min = (time.time() - t0) / 60
 
     best = ROOT / "runs" / args.name / "weights" / "best.pt"
+    if args.resume:  # take settings from the original run, not the command line
+        ta = YOLO(str(best)).ckpt.get("train_args", {})
+        args.imgsz, args.epochs = ta.get("imgsz", args.imgsz), ta.get("epochs", args.epochs)
+        model_desc = Path(str(ta.get("model", "resumed"))).stem
+        if model_desc in ("last", "best"):
+            model_desc = "resumed"
     m = YOLO(str(best)).val(data=args.data, split="test", imgsz=args.imgsz, device=args.device,
                             project=str(ROOT / "runs"), name=f"{args.name}_test", exist_ok=True)
 

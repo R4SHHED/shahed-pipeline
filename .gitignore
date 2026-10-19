@@ -6,3 +6,4 @@ runs/
 *.pt
 *.onnx
 *.ncnn
+bus.jpg

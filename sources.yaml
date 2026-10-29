@@ -40,6 +40,15 @@ sources:
     class_map:
       shahed: shahed
 
+  # Birds by EvilSUmrak (CC BY 4.0 - credit the author!). REAL video frames of flying birds,
+  # many small/far away. Teaches "bird is not a Shahed" and lets us MEASURE false alarms.
+  - name: birds_evilsumrak
+    path: data/raw/birds-evilsumrak
+    domain: real
+    group_by: video            # frames like pexels-...-6942723_mp4-4 -> one group per video
+    class_map:
+      "- bird": bird
+
   # Example 3: multi-class dataset with confusers
   - name: hlyx
     path: data/raw/shahed-136-hlyx

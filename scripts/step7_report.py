@@ -115,7 +115,8 @@ def main():
 
     # context: score on the (render) validation set at the first size
     v = model.val(data=args.data, split="val", imgsz=args.sizes[0], plots=False, verbose=False)
-    val_map50 = float(v.box.map50)
+    vi = list(v.ap_class_index)
+    val_map50 = float(v.box.class_result(vi.index(args.target))[2]) if args.target in vi else float("nan")
 
     rows = []
     for s in args.sizes:
@@ -124,15 +125,22 @@ def main():
         R = tp / (tp + fn) if tp + fn else float("nan")
         F1 = 2 * P * R / (P + R) if P == P and R == R and P + R else float("nan")
         m = model.val(data=args.data, split="test", imgsz=s, plots=False, verbose=False)
+        # Shahed-only benchmark numbers (not averaged with bird / other classes)
+        cls_ids = list(m.ap_class_index)
+        if args.target in cls_ids:
+            _, _, s_map50, s_map = m.box.class_result(cls_ids.index(args.target))
+        else:
+            s_map50 = s_map = float("nan")
         rows.append({
             "image_size": s,
             "drones_found": f"{tp}/{tp + fn}",
             "recall": pct(R), "recall_95%_range": rng(wilson(tp, tp + fn)),
             "precision": pct(P), "precision_95%_range": rng(wilson(tp, tp + fp)),
             "F1": f"{F1:.3f}" if F1 == F1 else "n/a",
-            "mAP50": f"{float(m.box.map50):.3f}", "mAP50-95": f"{float(m.box.map):.3f}",
+            "mAP50": f"{float(s_map50):.3f}", "mAP50-95": f"{float(s_map):.3f}",
             "false_boxes": fp, "false_boxes_per_image": f"{fp / len(imgs):.2f}",
-            "empty_images_with_alarm": f"{empty_alarm}/{n_empty}" if n_empty else "not tested (0 empty images)",
+            "empty_images_with_alarm": (f"{empty_alarm}/{n_empty} ({100 * empty_alarm / n_empty:.1f}%)"
+                                        if n_empty else "not tested (0 empty images)"),
             "laptop_ms_per_image": f"{ms:.0f}",
             "pi4_fps": pi.get(s, "not measured"),
         })
@@ -150,7 +158,9 @@ def main():
             "F1", "mAP50", "mAP50-95", "false_boxes", "empty_images_with_alarm", "pi4_fps"]
     md = [f"# Shahed detector – test results ({datetime.now():%Y-%m-%d})", "",
           f"- Model: `{Path(args.weights).as_posix()}` (YOLO11n), deployed as NCNN on Raspberry Pi 4",
-          f"- Test set: **{len(imgs)} real images, {n_drones} drones** (real footage only; no renders)",
+          f"- Test set: **{len(imgs)} real images**: {n_drones} Shahed drones, and "
+          f"{sum(1 for p in imgs if not any(c == args.target for c, *_ in read_yolo_labels(p.parent.parent / 'labels' / (p.stem + '.txt'))))}"
+          f" images with NO Shahed (birds / sky) to measure false alarms. Real footage only; no renders.",
           f"- Settings: confidence ≥ {args.conf}, a hit needs box overlap (IoU) ≥ {args.iou}",
           f"- For context: mAP50 on the render validation set = {val_map50:.3f} (renders are much easier)", "",
           "| " + " | ".join(cols) + " |", "|" + "---|" * len(cols)]
@@ -159,12 +169,13 @@ def main():
            "- *Recall* = share of real drones found. *Precision* = share of alarms that were real drones. "
            "*F1* balances both (1.0 = perfect).",
            "- The *95% range* is where the true value most likely lies. It is wide because the test set is small.",
-           "- *Empty images with alarm* = false-alarm rate on sky with no drone. "
-           "Not measurable until empty/negative test images are added.",
+           "- *Empty images with alarm* = images with NO Shahed (e.g. only birds) where the model still "
+           "raised a Shahed alarm, i.e. the false-alarm rate.",
+           "- mAP50 / mAP50-95 here are for the **Shahed class only**.",
            "- *mAP50* is the standard benchmark score used in research papers.", "",
            "**Limits of these numbers**",
            f"- Only {len(imgs)} real test images, probably from one or two videos.",
-           "- No small/far-away drones and no birds/aircraft in the test set yet.",
+           "- No small/far-away Shaheds and no aircraft in the test set yet.",
            "- The model was trained almost entirely on 3D renders."]
     (out / "results.md").write_text("\n".join(md), encoding="utf-8")
     print(f"\nWrote {out / 'results.md'} and {out / 'results.csv'}")

@@ -1,0 +1,2 @@
+image_size,drones_found,recall,recall_95%_range,precision,precision_95%_range,F1,mAP50,mAP50-95,false_boxes,false_boxes_per_image,empty_images_with_alarm,laptop_ms_per_image,pi4_fps
+640,49/49,100.0%,93–100%,2.4%,2–3%,0.047,0.086,0.025,1990,1.82,866/1045 (82.9%),103,2.75

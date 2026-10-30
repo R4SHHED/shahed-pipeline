@@ -49,6 +49,18 @@ sources:
     class_map:
       "- bird": bird
 
+  # "shahed" by e-yjnj4 (CC BY 4.0 - credit the author!). A mix of several datasets:
+  # REAL planes, quadcopters and birds (kept) + a family of Shahed RENDERS (removed, we have those).
+  - name: mixed_eyjnj4
+    path: data/raw/shahed-e-yjnj4
+    domain: real
+    exclude: '^[A-Za-z]{12,}\d{4}_png'   # the render family (random letters + 0000_png)
+    skip_images_with: [shahed]            # drop any other image that has a (render) Shahed in it
+    group_by: auto                        # video frames grouped per video, photos one by one
+    class_map:
+      bird: bird
+      not: other_aircraft                 # planes, quadcopters, ... = "flying, but NOT a Shahed"
+
   # Example 3: multi-class dataset with confusers
   - name: hlyx
     path: data/raw/shahed-136-hlyx
@@ -65,3 +77,15 @@ sources:
     path: data/raw/negatives
     domain: real
     class_map: {}
+
+  # Render Shaheds pasted onto REAL training skies (made by scripts/make_composites.py).
+  # Keep this LAST, so adding it never changes the splits of the sources above.
+  - name: composites
+    path: data/raw/composites
+    domain: synthetic
+    group_by: image
+    val: 0.0              # all composites -> TRAIN (backgrounds repeat, so they'd inflate validation)
+    class_map:
+      shahed: shahed
+      bird: bird
+      other_aircraft: other_aircraft

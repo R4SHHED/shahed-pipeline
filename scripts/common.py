@@ -75,10 +75,13 @@ def group_key(stem, mode="image"):
                   ('photo12_jpg.rf.abc' and 'photo12_jpg.rf.def' -> 'photo12').
     mode='video': also strips the trailing frame number, so every frame of a video is one group
                   ('video3_frame_0042_jpg.rf.abc' -> 'video3').
+    mode='auto':  'video' for names that look like video frames (mp4, video, frame...), else 'image'.
     mode='block:N': files numbered in order (0001, 0002, ...) are grouped in blocks of N
                   consecutive numbers (0001-0049 -> one group), so neighbouring video frames
                   never end up in different splits."""
     s = _RF.sub("", stem)
+    if mode == "auto":  # video frames -> group by video; single photos -> one group each
+        mode = "video" if re.search(r"(mp4|avi|mov|mkv|video|frame)", s, re.I) else "image"
     if mode.startswith("block"):
         n = int(mode.split(":")[1]) if ":" in mode else 50
         m = re.search(r"(\d+)$", s)

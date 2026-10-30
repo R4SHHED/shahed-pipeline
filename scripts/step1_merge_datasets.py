@@ -40,6 +40,7 @@ def main():
         (out / s / "labels").mkdir(parents=True)
 
     report = []
+    global_assign = {}   # group key -> split, shared by ALL sources (same video never in two splits)
     for src in cfg["sources"]:
         sdir = (ROOT / src["path"]) if not Path(src["path"]).is_absolute() else Path(src["path"])
         if not sdir.exists():
@@ -65,6 +66,14 @@ def main():
             imgs = [p for p in imgs if re.search(src["include"], p.name)]
         if src.get("exclude"):
             imgs = [p for p in imgs if not re.search(src["exclude"], p.name)]
+        # optionally drop whole images that contain a given source class (e.g. render Shaheds
+        # mixed into an otherwise real dataset) - better than keeping them with the label removed
+        skip_names = set(src.get("skip_images_with") or [])
+        if skip_names:
+            skip_ids = {i for i, n in enumerate(src_names) if n in skip_names}
+            before = len(imgs)
+            imgs = [p for p in imgs if not any(c in skip_ids for c, *_ in read_yolo_labels(label_path_for(p)))]
+            print(f"[info] {src['name']}: skipped {before - len(imgs)} images containing {sorted(skip_names)}")
         mode = src.get("group_by", "image")
         groups = defaultdict(list)
         for p in imgs:
@@ -87,6 +96,18 @@ def main():
         assign = {}
         for i, k in enumerate(keys):
             assign[k] = "test" if i < n_test else "val" if i < n_test + n_val else "train"
+        # same group already placed by an earlier source (e.g. the same bird video in two datasets)
+        # -> reuse that split, so nothing leaks between train and test across datasets
+        reused = 0
+        for k in keys:
+            if k in global_assign:
+                g = global_assign[k]
+                assign[k] = "val" if (g == "test" and not real) else g
+                reused += 1
+            else:
+                global_assign[k] = assign[k]
+        if reused:
+            print(f"[info] {src['name']}: {reused} group(s) also appear in an earlier source -> kept in the same split")
 
         counts = defaultdict(int)
         for k, plist in groups.items():
